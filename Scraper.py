@@ -6,13 +6,10 @@ from bs4 import BeautifulSoup
 from time import sleep
 from pathlib import Path 
 
-
 #Fields for the quotes file (future MySQL 'quotes' table)
 text = []
 tags = []
 author = []
-
-
 
 #Fields for the author file (future MySQL 'authors' table)
 #author = []
@@ -21,7 +18,6 @@ country =[]
 initials = []
 bios_link = []
 birth_date = []
-
 
 months_dict = dict(
             JANUARY = '01',
