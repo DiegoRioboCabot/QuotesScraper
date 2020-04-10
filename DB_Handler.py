@@ -94,22 +94,23 @@ exists_authors="authors" in results
 if not exists_quotes:
     print("Creating 'quotes' table")
     sql_cmd = """CREATE TABLE 
-                `quotes` (
-                `id` INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-                `text` TEXT NOT NULL,
-                `author` VARCHAR(50) NOT NULL,
-                `tags` VARCHAR(100) NULL);"""
+                'quotes' (
+                'id' INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+                'quote' TEXT NOT NULL,
+                'author' VARCHAR(30) NOT NULL,
+                'tags' VARCHAR(80) NULL)
+                'link'VARCHAR(60) NULL;"""
     exec_n_commit(pyConector,sql_cmd)
 
 if not exists_authors:
     print("Creating 'authors' table")
     sql_cmd = """CREATE TABLE 
-                `authors` (
-                `id` INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-                `author` TEXT NOT NULL,
-                `country` VARCHAR(50) NOT NULL,
-                `birth_date` VARCHAR(50) NOT NULL,
-                `bio` TEXT NOT NULL);"""
+                'authors` (
+                'id' INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+                'author' VARCHAR(30) NOT NULL,
+                'country' VARCHAR(40) NOT NULL,
+                'bdate' VARCHAR(10) NOT NULL,
+                'bio' TEXT NOT NULL);"""
     exec_n_commit(pyConector,sql_cmd)
 
 

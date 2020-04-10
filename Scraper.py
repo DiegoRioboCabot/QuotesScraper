@@ -6,18 +6,10 @@ from bs4 import BeautifulSoup
 from time import sleep
 from pathlib import Path 
 
-#Fields for the quotes file (future MySQL 'quotes' table)
-text = []
-tags = []
-author = []
-
-#Fields for the author file (future MySQL 'authors' table)
-#author = []
-bio = []
-country =[]
-initials = []
-bios_link = []
-birth_date = []
+# Lists that will contain dictionaries  | Fields :
+list_quotes = []                        # quote, author, tags, link to author' bio
+list_authors = []                       # author, country, birth date, bio
+set_authors = set()
 
 months_dict = dict(
             JANUARY = '01',
@@ -31,116 +23,108 @@ months_dict = dict(
             SEPTEMBER = '09',
             OCTOBER = '10',
             NOVEMBER = '11',
-            DECEMBER = '12'
-            )
-
+            DECEMBER = '12')
 
 #Base URL
-url_home = "http://quotes.toscrape.com"
-url = url_home
+url = ''
+url_home = 'http://quotes.toscrape.com'
 
 #============================================
 #Loop to scrape through all pages with quotes
 #============================================
-
 while True:
-    altoguiso = BeautifulSoup(requests.get(url).text,"html.parser")
+    print(f'Scraping {url_home}{url}')
+    altoguiso = BeautifulSoup(requests.get(url_home + url).text,'html.parser')
 
-    text.extend(
-        [item.string for item in 
-        altoguiso.select(".text")]
-        )
-
-    author.extend(
-        [item.string for item in 
-        altoguiso.select(".author")]
-        )
-
-    bios_link.extend(
-        [url_home + item.next_sibling.next_sibling.get("href") 
-        for item in altoguiso.select(".author")]
-        )
-
-    #Get tags for each quote as tuples, and pass them a list elements
     for quote in altoguiso.select(".quote"):
-        for temp in quote.select(".tags"):
-            tags.append(
-                        tuple(
-                            tag.string for tag in temp.find_all("a")
-                            )
-                        )
 
-    #Verify if there's a "Next" button on page
-    if not altoguiso.select(".next"): break
+        author = quote.find(class_='author').get_text()
+        link = url_home + quote.find('a')['href']
 
-    #Get "Next" button's link and add it to main URL
-    url = url_home + altoguiso.select(".next")[0].next_element.next_element.get("href")
+        #Builds a set of tuples (author,link-to-bio)
+        set_authors.add((author,link))
 
-quotes_list = list(zip(text,author,tags))
+        #List of dictionaries {quote,author,tags,link}
+        #Tags for each quote delimited with "_"
+        list_quotes.append({
+            'quote':quote.find(class_='text').get_text(),
+            'author':author,
+            'tags':"_".join([tag.get_text() for tag in quote.select('.tag')]),
+            'link':link
+            })
 
+    next_btn = altoguiso.find(class_='next')                #Looks for for the 'next button'. If not returns None
+    if not next_btn: break
+    url = next_btn.find('a')['href'] if next_btn else ''    #Get "Next" button's url
 
 #===========================================
 #Loop to scrape through all author bio pages
 #===========================================
+for item in set_authors:
 
-author_set = set(zip(author,bios_link))
-author = []
+    print(f"Scraping {item[1]}")
+    altoguiso = BeautifulSoup(requests.get(item[1]).text,'html.parser')
 
-for item in author_set:
-    url = item[1]
-    altoguiso = BeautifulSoup(requests.get(url).text,"html.parser")
+    #Get birth date in 'YYYY-MM-DD' string format
+    txt_birth = altoguiso.find(class_='author-born-date').get_text()  #String 'MMMM DD, YYYYY'
+    txt_birth = txt_birth.split(',')                            #List ['MMMM DD',' YYYY']
+    txt_birth[1] = txt_birth[1].strip()                      #List ['MMMM DD','YYYY'] 
+    txt_birth.extend(txt_birth[0].split(" "))                   #List ['MMMM DD','YYYY', 'MMMM', 'DD']
+    txt_birth[2] = months_dict[txt_birth[2].upper()]            #List ['MMMM DD','YYYY', 'MM', 'DD']
+    txt_birth = "-".join(txt_birth[1:])                         #String 'YYYY-MM-DD'
 
-    birth_text = altoguiso.select(".author-born-date")[0].string.split(',') #'MMMM DD, YYYY'
+    #Get country
+    location = altoguiso.find(class_='author-born-location').get_text()   # Gets raw location text
+    location = location[3::]                                        # Removes "in_" from the string
+    location = location.split(',')                                  # ['SOME PLACE', 'SOME OTHER', 'MAYBE STATE', '...', '<COUNTRY>']
+    location = location[-1].strip()                                 # Removes leading and/or trailing spaces from the country item
 
-    year = birth_text[-1].strip()
-    day = birth_text[0].split(" ")[-1]
-    month = birth_text[0].split(" ")[0]
-    month = months_dict[month.upper()]
+    #Adds author dictionary to authors list
+    list_authors.append({
+        'author':item[0],
+        'country':location,
+        'bdate':txt_birth,
+        'bio':altoguiso.find(class_='author-description').get_text().strip()
+        })
 
-    birth_text = "-".join([year,month,day]) #'YYYY-MM-DD'
+del [altoguiso, url, url_home, txt_birth, location]
 
-    #SOME PLACE, SOME OTHER, MAYBE STATE, ETC, <COUNTRY>
-    location = altoguiso.select(".author-born-location")[0].string[3::] 
-
-    #Selects last item from list and removes its leading spaces
-    country_str = location.split(',')[-1].strip() 
-
-    #Continues to add to temporary lists
-    author.append(item[0])
-    country.append(country_str)
-    birth_date.append(birth_text)
-    bio.append(altoguiso.select(".author-description")[0].string)
-
-
-#Build quotes list, author list and delete temporary data
-author_list = list(zip(author,country,birth_date,bio))
-
-
-del [text, tags, bios_link, author, country, birth_date,bio]
-
-#===================
-#Saving to CSV files
-#===================
-
+#========================================
+#Initialize Files folder, and other stuff
+#========================================
 #Get root folder from where Scraper.py is being run and add "\Files" to it
 filesfolder = os.path.dirname(
                 os.path.abspath(__file__)
-                             ) + "\\Files"
+                             ) + '\\Files'
 
 #Create "Files" folder if it doesn't exist
 if not Path(filesfolder).exists(): Path(filesfolder).mkdir(parents=True, exist_ok=True)
 
+file_quotes = filesfolder + '\\Quotes.csv'
+file_authors = filesfolder + "\\Authors.csv"
 
-#Quotes.csv
-with open(filesfolder + "\\Quotes.csv", "w", newline='',encoding='utf-16') as file:
-    csv.writer(file).writerow(["quote","author","tags"])
-    csv.writer(file).writerows(quotes_list)
+fields_quotes = ['quote','author','tags', 'link']   #Header names must match dictionary keys
+fields_authors =['author','country','bdate','bio']
 
-#Authors.csv
-with open(filesfolder + "\\Authors.csv", "w", newline='',encoding='utf-16') as file:
-    csv.writer(file).writerow(["author","country","birth_date", "bio"])
-    csv.writer(file).writerows(author_list)
+tasks_thingy = [
+    [file_quotes,fields_quotes,list_quotes],
+    [file_authors,fields_authors,list_authors]
+    ]
 
+del (filesfolder, 
+    file_quotes, file_authors, 
+    fields_quotes, fields_authors,
+    list_quotes, list_authors)
+
+#===================
+#Saving to CSV files
+#===================
+for item in tasks_thingy:
+    print(f'Printing to file: {item[0]}\nHeaders are: {item[1]}')
+    with open(item[0], 'w',newline ='', encoding='utf-16') as file:
+        WriterObj = csv.DictWriter(file, fieldnames=item[1])
+        WriterObj.writeheader()
+        WriterObj.writerows(item[2])
 
 #Log.csv
 #Future logging, onces logging structure is defined
