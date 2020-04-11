@@ -38,8 +38,19 @@ while True:
 
     for quote in altoguiso.select(".quote"):
 
-        author = quote.find(class_='author').get_text()
+        
         link = url_home + quote.find('a')['href']
+        author = quote.find(class_='author').get_text()
+        quote_txt = quote.find(class_='text').get_text()
+
+        #Get rid of this annoying quotes that mess everything up
+        author = author.replace("'","\\'")
+
+        quote_txt = quote_txt.replace('“','')
+        quote_txt = quote_txt.replace('”','')
+        quote_txt = quote_txt.replace("′","'")
+        quote_txt = quote_txt.replace("'","\\'")
+        quote_txt = quote_txt.replace('"',"\\'\\'")
 
         #Builds a set of tuples (author,link-to-bio)
         set_authors.add((author,link))
@@ -47,7 +58,7 @@ while True:
         #List of dictionaries {quote,author,tags,link}
         #Tags for each quote delimited with "_"
         list_quotes.append({
-            'quote':quote.find(class_='text').get_text(),
+            'quote':quote_txt,
             'author':author,
             'tags':"_".join([tag.get_text() for tag in quote.select('.tag')]),
             'link':link
@@ -79,12 +90,22 @@ for item in set_authors:
     location = location.split(',')                                  # ['SOME PLACE', 'SOME OTHER', 'MAYBE STATE', '...', '<COUNTRY>']
     location = location[-1].strip()                                 # Removes leading and/or trailing spaces from the country item
 
+
+
+    #Get rid of this annoying quotes that mess everything up
+    bio = altoguiso.find(class_='author-description').get_text().strip()
+    bio = bio.replace('“','')
+    bio = bio.replace('”','')
+    bio = bio.replace("′","'")
+    bio = bio.replace("'","\\'")
+    bio = bio.replace('"',"\\'\\'")
+
     #Adds author dictionary to authors list
     list_authors.append({
         'author':item[0],
         'country':location,
         'bdate':txt_birth,
-        'bio':altoguiso.find(class_='author-description').get_text().strip()
+        'bio':bio
         })
 
 del [altoguiso, url, url_home, txt_birth, location]
@@ -120,7 +141,7 @@ del (filesfolder,
 #Saving to CSV files
 #===================
 for item in tasks_thingy:
-    print(f'Printing to file: {item[0]}\nHeaders are: {item[1]}')
+    print(f'\nPrinting to file: {item[0]}\nHeaders are: {item[1]}\n')
     with open(item[0], 'w',newline ='', encoding='utf-16') as file:
         WriterObj = csv.DictWriter(file, fieldnames=item[1])
         WriterObj.writeheader()

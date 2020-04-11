@@ -1,6 +1,7 @@
 import os
 import pymysql
 
+from csv import reader
 from pathlib import Path 
 
 def upload_date(table_name: str="",csv_file_path: str="",full_upload: bool=False):
@@ -54,7 +55,6 @@ def list_difference(list1, list2):
 #           I N I T I A L I Z E    D A T A B A S E
 #
 ###################################################################
-
 #Create connection object with local DBMS
 pyConector = pymysql.connect(
                 host='localhost',
@@ -68,7 +68,7 @@ results =   [item[0] for item in
 
 #If schema doesn't exist, create it
 if not ("quotesscraper" in results):
-    print("Creating QuotesScraper DB")
+    print("\nCreating QuotesScraper DB\n")
     exec_n_commit(pyConector, "CREATE DATABASE quotesscraper;")
 
 #Change DB Connection Object. Add quotesscraper attribute.
@@ -82,43 +82,33 @@ pyConector = pymysql.connect(
 exec_n_commit(pyConector,"USE quotesscraper;")
 
 #Get existing TABLES in QuotesScraper DataBase
-sql_cmd = "SHOW TABLES;"
-results =   [item[0] for item in
-            exec_n_fetchall(pyConector, sql_cmd)]
+results =   [item[0] for item in exec_n_fetchall(pyConector, "SHOW TABLES;")]
 
-exists_quotes="quotes" in results
-exists_authors="authors" in results
+if "quotes" in results: 	
+   exec_n_commit(pyConector," DROP TABLE quotes;")
 
-#If tables don't exist, create them
-#quotes 
-if not exists_quotes:
-    print("Creating 'quotes' table")
-    sql_cmd = """CREATE TABLE 
-                'quotes' (
-                'id' INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-                'quote' TEXT NOT NULL,
-                'author' VARCHAR(30) NOT NULL,
-                'tags' VARCHAR(80) NULL)
-                'link'VARCHAR(60) NULL;"""
-    exec_n_commit(pyConector,sql_cmd)
+if "authors" in results: 	
+   exec_n_commit(pyConector," DROP TABLE authors;")
 
-if not exists_authors:
-    print("Creating 'authors' table")
-    sql_cmd = """CREATE TABLE 
-                'authors` (
-                'id' INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
-                'author' VARCHAR(30) NOT NULL,
-                'country' VARCHAR(40) NOT NULL,
-                'bdate' VARCHAR(10) NOT NULL,
-                'bio' TEXT NOT NULL);"""
-    exec_n_commit(pyConector,sql_cmd)
+#Creates quotes table 
+print("\nCreating 'quotes' table\n")
+sql_cmd = """CREATE TABLE quotes (
+            id INT AUTO_INCREMENT PRIMARY KEY NOT NULL, 
+            quote TEXT NOT NULL, 
+            author VARCHAR(30) NOT NULL, 
+            tags VARCHAR(80) NULL, 
+            link VARCHAR(60) NULL);"""
+exec_n_commit(pyConector,sql_cmd)
 
-
-#Check if tables are empty and save status
-
-empty_quotes = bool(exec_n_fetchall(pyConector,"SELECT COUNT(*) FROM quotes;")[0][0])
-empty_authors = bool(exec_n_fetchall(pyConector,"SELECT COUNT(*) FROM authors;")[0][0])
-
+#Creates authors table 
+print("\nCreating 'authors' table\n")
+sql_cmd = """CREATE TABLE authors (
+            id INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+            author VARCHAR(30) NOT NULL,
+            country VARCHAR(40) NOT NULL,
+            bdate VARCHAR(10) NOT NULL,
+            bio TEXT NOT NULL);"""
+exec_n_commit(pyConector,sql_cmd)
 
 ###################################################################
 #
@@ -129,7 +119,6 @@ empty_authors = bool(exec_n_fetchall(pyConector,"SELECT COUNT(*) FROM authors;")
 #===========================
 # File and filepath handling
 #===========================
-
 #Get root folder from where DB_Handler.py is being run and add "\Files" to it
 filesfolder = os.path.dirname(
                 os.path.abspath(__file__)
@@ -144,37 +133,29 @@ file_authors = filesfolder + "\\Authors.csv"
 file_exists_quotes = Path(file_quotes).exists()
 file_exists_authors = Path(file_authors).exists()
 
-
-
 #====================================
 # Finally, uploading some stuff, yay!
 #====================================
-
 tasks_thingy = dict(
-        quotes= [file_exists_quotes, empty_quotes, file_quotes],
-        authors= [file_exists_authors, empty_authors, file_authors]
+        quotes= [file_exists_quotes,file_quotes],
+        authors= [file_exists_authors,file_authors]
         )
 
-
 for item in tasks_thingy:
-    #File exists and tables are empty
-    if tasks_thingy[item][0] and tasks_thingy[item][1]:
-        pass
 
-    #File exists and tables are not empty
-    elif tasks_thingy[item][0] and not tasks_thingy[item][1]:
-        #Read CSV file to upload
-        #Read current data in DB
+    filepath = tasks_thingy[item][1]
+    if not tasks_thingy[item][0]: 
+        print(f"\nCouldn't find {filepath}...\ncontinuing with the rest of the files\n")
+        continue  #If file doesn't exist, continue with the rest
+    with open(filepath, 'r', newline='',encoding='utf-16') as file:
+        header = next(reader(file))
 
-        #Get a list which is the difference between both lists
-        #data_to_upload = [item for item in list2 if item not in list1]
+        for row in reader(file):
+            if item == 'quotes':
+                sql_cmd = f"INSERT INTO {item} ({header[0]},{header[1]},{header[2]},{header[3]}) VALUES (\"{row[0]}\",'{row[1]}','{row[2]}','{row[3]}');"
+            else:
+                sql_cmd = f"INSERT INTO {item} ({header[0]},{header[1]},{header[2]},{header[3]}) VALUES ('{row[0]}','{row[1]}','{row[2]}',\"{row[3]}\");"
 
-        #Perform a
-        pass
-    
-    #File doesn't exist
-    else:
-        pass
-        #--->Just Log activity, [item]'s file not found. Skipping
+            exec_n_commit(pyConector,sql_cmd)
 
-print("Llegamos al final!")
+print("Databes uploading: Done")
