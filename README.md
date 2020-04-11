@@ -33,7 +33,7 @@ The application should be based on several files, in order to compartimentalize,
         * Give the user the ability to delete all, in order to start over
 
 ### DB_ReadOnly.py
-    --> This file will only be used to create a Class, which will be importad by GessingGame.py
+    --> This file will only be used to create a Class, which will be importad by GuessingGame.py
         * Connect to the database
         * Randomly select a quote
         * Maybe optional filters could be applied to narrow possibilities down (Say... quotes from People from the UK... idk)
