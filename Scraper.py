@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from time import sleep
 from pathlib import Path 
 
+
 # Lists that will contain dictionaries  | Fields :
 list_quotes = []                        # quote, author, tags, link to author' bio
 list_authors = []                       # author, country, birth date, bio
@@ -141,7 +142,7 @@ del (filesfolder,
 #Saving to CSV files
 #===================
 for item in tasks_thingy:
-    print(f'\nPrinting to file: {item[0]}\nHeaders are: {item[1]}\n')
+    print(f'\nPrinting to file: {item[0]})
     with open(item[0], 'w',newline ='', encoding='utf-16') as file:
         WriterObj = csv.DictWriter(file, fieldnames=item[1])
         WriterObj.writeheader()
